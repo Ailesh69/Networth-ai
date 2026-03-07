@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Query, UploadFile
@@ -176,3 +176,43 @@ Instructions:
         ]
 
     return {"recommendations": recommendations}
+
+
+class ChatRequest(BaseModel):
+    message: str
+
+
+@app.post("/chat")
+async def chat(body: ChatRequest):
+    # Get current financial data
+    financial_data = get_summary()
+    summary = financial_data["summary"]
+    by_category = financial_data["byCategory"]
+    upcoming = financial_data["upcoming"]
+    transactions = financial_data["transactions"]["items"][:10]
+
+    system_prompt = f"""
+You are a personal finance assistant. You have access to the user's real financial data below.
+Answer their questions based on this data. Be honest, concise and practical.
+
+Current Financial Data:
+- Income this month: ₹{summary["incomeThisMonth"]}
+- Expenses this month: ₹{summary["expenseThisMonth"]}
+- Planned savings: ₹{summary["plannedSavings"]}
+- Net worth: ₹{summary["netWorthValue"]}
+
+Spending by category: {by_category}
+Upcoming bills: {upcoming}
+Recent transactions: {transactions}
+"""
+
+    client = Groq(api_key=groq_api_key)
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": body.message},
+        ],
+    )
+
+    return {"reply": response.choices[0].message.content}
