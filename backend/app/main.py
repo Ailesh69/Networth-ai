@@ -1,17 +1,19 @@
-from fastapi import FastAPI, UploadFile, File, Query
-from fastapi.responses import RedirectResponse
-from fastapi.middleware.cors import CORSMiddleware
-from .services._services import get_summary
-from .market_data import fetch_stock_price, fetch_crypto_price, fetch_stock_history
-import os
-from dotenv  import load_dotenv
-from pydantic import BaseModel
-from typing import Dict, List, Any, Optional
-import openai
-import httpx
-import re
 import json
+import os
+from typing import Any, Dict, List, Optional
+
+from dotenv import load_dotenv
+from fastapi import FastAPI, File, Query, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+from groq import Groq
+from pydantic import BaseModel
+
+from .market_data import fetch_crypto_price, fetch_stock_history, fetch_stock_price
+from .services._services import get_summary
+
 app = FastAPI(title="Networth Ai", version="1.0")
+
 
 class TransactionItem(BaseModel):
     date: str
@@ -20,15 +22,18 @@ class TransactionItem(BaseModel):
     credit: float
     category: str
 
+
 class Transactions(BaseModel):
     count: int
     items: List[TransactionItem]
+
 
 class AdviceRequest(BaseModel):
     summary: Dict[str, Any]
     byCategory: Dict[str, float]
     upcoming: List[Dict[str, Any]]
     transactions: Transactions
+
 
 # Add CORS middleware
 app.add_middleware(
@@ -39,32 +44,39 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/")
 def root():
     return RedirectResponse(url="/docs")
+
 
 @app.post("/upload-statement")
 async def upload_statement(file: UploadFile = File(...), month: str | None = None):
     # Read file content
     file_content = await file.read()
-    
+
     # Get file extension
-    file_extension = file.filename.split('.')[-1].lower() if file.filename else 'csv'
-    
+    file_extension = file.filename.split(".")[-1].lower() if file.filename else "csv"
+
     # Process the file and return summary
     return get_summary(month=month, file_content=file_content, file_type=file_extension)
+
 
 @app.get("/summary")
 async def get_summary_data(month: str | None = None):
     # Return summary without requiring file upload
     return get_summary(month=month)
 
+
 @app.get("/stock-price")
-async def stock_price(symbol: str = Query(..., description="Stock ticker symbol, e.g. AAPL")):
+async def stock_price(
+    symbol: str = Query(..., description="Stock ticker symbol, e.g. AAPL"),
+):
     price = await fetch_stock_price(symbol)
     if price is None:
         return {"error": "Price not found"}
     return {"symbol": symbol, "price": price}
+
 
 @app.get("/crypto-price")
 async def crypto_price(symbol: str = Query(..., description="Crypto id, e.g. bitcoin")):
@@ -73,18 +85,25 @@ async def crypto_price(symbol: str = Query(..., description="Crypto id, e.g. bit
         return {"error": "Price not found"}
     return {"symbol": symbol, "price": price}
 
+
 @app.get("/stock-history")
-async def stock_history(symbol: str = Query(..., description="Stock ticker symbol, e.g. AAPL"), days: int = Query(30, description="Number of days of history")):
+async def stock_history(
+    symbol: str = Query(..., description="Stock ticker symbol, e.g. AAPL"),
+    days: int = Query(30, description="Number of days of history"),
+):
     history = await fetch_stock_history(symbol, days)
     if history is None:
         return {"error": "Stock history not found"}
     return history
+
+
 # Open api key
 load_dotenv(".env.local")
-openai_api_key = os.getenv("OPENAI_API_KEY")
-if not openai_api_key:
-    raise RuntimeError("OPENAI_API_KEY not found in environment variables")
-openai.api_key = openai_api_key
+groq_api_key = os.getenv("Groq_Api_Key")
+if not groq_api_key:
+    raise RuntimeError("Groq-api key not found in environment variables")
+Groq.api_key = groq_api_key
+
 
 @app.post("/advice")
 async def advice(body: AdviceRequest):
@@ -94,10 +113,10 @@ You are a personal finance coach for students and young professionals.
 Given the following user data, provide 3-5 actionable, prioritized recommendations to improve their financial health this month.
 
 User Data:
-Summary: {data.get('summary')}
-Spending by category: {data.get('byCategory')}
-Upcoming bills: {data.get('upcoming')}
-Recent transactions: {data.get('transactions', {}).get('items', [])[:5]}
+Summary: {data.get("summary")}
+Spending by category: {data.get("byCategory")}
+Upcoming bills: {data.get("upcoming")}
+Recent transactions: {data.get("transactions", {}).get("items", [])[:5]}
 
 Instructions:
 - Be concise and specific.
@@ -125,31 +144,35 @@ Instructions:
         "Once I have that data, I'll be able to give you personalized, actionable advice."
     )
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        resp = await client.post(
-            "http://localhost:11434/api/generate",
-            json={
-                "model": "llama3",
-                "prompt": prompt,
-                "system": system_prompt,
-                "stream": False
-            }
-        )
-        result = resp.json()
-        ai_text = result.get("response", "")
+    client = Groq(api_key=groq_api_key)
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt},
+        ],
+    )
+    ai_text = response.choices[0].message.content
 
     # Improved JSON extraction: find the first [ and last ] and parse
     def extract_json_array(text):
         try:
-            start = text.index('[')
-            end = text.rindex(']')
-            json_str = text[start:end+1]
+            start = text.index("[")
+            end = text.rindex("]")
+            json_str = text[start : end + 1]
             return json.loads(json_str)
         except Exception:
             return None
 
     recommendations = extract_json_array(ai_text)
     if not recommendations:
-        recommendations = [{"title": "No recommendations found", "action": ai_text, "reason": "", "risk": ""}]
+        recommendations = [
+            {
+                "title": "No recommendations found",
+                "action": ai_text,
+                "reason": "",
+                "risk": "",
+            }
+        ]
 
     return {"recommendations": recommendations}
