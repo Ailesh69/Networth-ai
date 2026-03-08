@@ -10,21 +10,25 @@ import InsightsPage from "./pages/InsightsPage";
 import SettingsPage from "./pages/SettingsPage";
 
 // Types
- type Message = {
+type Message = {
   id: number;
   text: string;
   sender: "user" | "ai";
   time: string;
 };
 
- type PageKey = "login" | "home" | "chat" | "insights" | "settings";
+type PageKey = "login" | "home" | "chat" | "insights" | "settings";
 
 const FinanceApp: React.FC = () => {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const [currentPage, setCurrentPage] = useState<PageKey>("login");
-  const [loginStep, setLoginStep] = useState<"phone" | "otp" | "email">("phone");
+  const [loginStep, setLoginStep] = useState<"phone" | "otp" | "email">(
+    "phone",
+  );
   const [countryCode, setCountryCode] = useState("+91");
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -37,7 +41,12 @@ const FinanceApp: React.FC = () => {
   const otpInputRef = useRef<HTMLInputElement | null>(null);
 
   const [chatMessages, setChatMessages] = useState<Message[]>([
-    { id: 1, text: "Hello there! I'm your AI financial guide, here to help you get a clear picture of your finances. What can I help you with today?", sender: "ai", time: "9:41 AM" },
+    {
+      id: 1,
+      text: "Hello there! I'm your AI financial guide, here to help you get a clear picture of your finances. What can I help you with today?",
+      sender: "ai",
+      time: "9:41 AM",
+    },
   ]);
   const [newMessage, setNewMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -70,7 +79,10 @@ const FinanceApp: React.FC = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (showCountryDropdown && !(event.target as Element).closest(".country-dropdown")) {
+      if (
+        showCountryDropdown &&
+        !(event.target as Element).closest(".country-dropdown")
+      ) {
         setShowCountryDropdown(false);
       }
     };
@@ -78,28 +90,39 @@ const FinanceApp: React.FC = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showCountryDropdown]);
 
-  const handlePhoneSubmit = useCallback((e: React.FormEvent) => {
-    e.preventDefault();
-    if (phoneNumber.length >= 10) {
-      setLoginStep("otp");
-      setOtp("");
-      setOtpError(null);
-      setTimer(30);
-    }
-  }, [phoneNumber]);
+  const handlePhoneSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (phoneNumber.length >= 10) {
+        setLoginStep("otp");
+        setOtp("");
+        setOtpError(null);
+        setTimer(30);
+      }
+    },
+    [phoneNumber],
+  );
 
-  const handleEmailSubmit = useCallback((e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-    // Demo: treat any email as success and go to home
-    setCurrentPage("home");
-    setEmail("");
-  }, [email]);
+  const handleEmailSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!email.trim()) return;
+      // Demo: treat any email as success and go to home
+      setCurrentPage("home");
+      setEmail("");
+    },
+    [email],
+  );
 
-  const handlePhoneChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setPhoneNumber(e.target.value.replace(/\D/g, ""));
-    setTimeout(() => { phoneInputRef.current?.focus(); }, 0);
-  }, []);
+  const handlePhoneChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setPhoneNumber(e.target.value.replace(/\D/g, ""));
+      setTimeout(() => {
+        phoneInputRef.current?.focus();
+      }, 0);
+    },
+    [],
+  );
 
   const selectCountryCode = useCallback((code: string) => {
     setCountryCode(code);
@@ -114,37 +137,74 @@ const FinanceApp: React.FC = () => {
     return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
   };
 
-  const handleOtpChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, "");
-    setOtp(value);
-    setOtpError(null);
-    setTimeout(() => { otpInputRef.current?.focus(); }, 0);
-    if (value.length === 6) {
-      if (value === "123456") {
-        setTimeout(() => setCurrentPage("home"), 500);
-      } else {
-        setOtpError("Invalid OTP");
-        setTimeout(() => setOtpError(null), 1500);
+  const handleOtpChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value.replace(/\D/g, "");
+      setOtp(value);
+      setOtpError(null);
+      setTimeout(() => {
+        otpInputRef.current?.focus();
+      }, 0);
+      if (value.length === 6) {
+        if (value === "123456") {
+          setTimeout(() => setCurrentPage("home"), 500);
+        } else {
+          setOtpError("Invalid OTP");
+          setTimeout(() => setOtpError(null), 1500);
+        }
       }
-    }
-  }, []);
+    },
+    [],
+  );
 
-  const sendMessage = (e: React.FormEvent) => {
+  const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
 
-    const userMsg: Message = { id: chatMessages.length + 1, text: newMessage, sender: "user", time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) };
+    const userMsg: Message = {
+      id: chatMessages.length + 1,
+      text: newMessage,
+      sender: "user",
+      time: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
     setChatMessages((prev) => [...prev, userMsg]);
     setNewMessage("");
-
-    // Show typing indicator
     setIsTyping(true);
-    // Simulate AI response delay
-    setTimeout(() => {
-      const aiMsg: Message = { id: userMsg.id + 1, text: "Unavailable", sender: "ai", time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) };
+
+    try {
+      const response = await fetch("http://localhost:8000/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userMsg.text }),
+      });
+      const data = await response.json();
+      const aiMsg: Message = {
+        id: userMsg.id + 1,
+        text: data.reply,
+        sender: "ai",
+        time: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
       setChatMessages((prev) => [...prev, aiMsg]);
+    } catch (error) {
+      const errMsg: Message = {
+        id: userMsg.id + 1,
+        text: "Sorry, I couldn't connect to the server.",
+        sender: "ai",
+        time: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+      setChatMessages((prev) => [...prev, errMsg]);
+    } finally {
       setIsTyping(false);
-    }, 800);
+    }
   };
 
   if (!mounted) return null;
@@ -191,11 +251,18 @@ const FinanceApp: React.FC = () => {
   }
 
   if (currentPage === "insights") {
-    return <InsightsPage active="insights" setCurrentPage={(p) => setCurrentPage(p as PageKey)} />;
+    return (
+      <InsightsPage
+        active="insights"
+        setCurrentPage={(p) => setCurrentPage(p as PageKey)}
+      />
+    );
   }
 
   if (currentPage === "settings") {
-    const displayPhone = phoneNumber ? `${countryCode} ${formatPhoneDisplay(phoneNumber)}` : "+1 555-123-4567";
+    const displayPhone = phoneNumber
+      ? `${countryCode} ${formatPhoneDisplay(phoneNumber)}`
+      : "+1 555-123-4567";
     return (
       <SettingsPage
         active="settings"
@@ -211,7 +278,12 @@ const FinanceApp: React.FC = () => {
     );
   }
 
-  return <HomePage active="home" setCurrentPage={(p) => setCurrentPage(p as PageKey)} />;
+  return (
+    <HomePage
+      active="home"
+      setCurrentPage={(p) => setCurrentPage(p as PageKey)}
+    />
+  );
 };
 
 export default FinanceApp;
