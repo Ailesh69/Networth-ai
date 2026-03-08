@@ -1,59 +1,76 @@
 @import "tailwindcss";
 
-/* App colors */
+/* ── App Color Tokens ────────────────────────────────────────────────────────
+   Define global design tokens here.
+   These are referenced throughout the app via var(--background) etc.
+   ───────────────────────────────────────────────────────────────────────── */
 :root {
-  --background: #060B16;  /* deep AMOLED navy */
-  --foreground: #ffffff;
+    --background: #060b16; /* Deep AMOLED navy — main app background */
+    --foreground: #ffffff; /* Primary text color */
 }
 
-/* Tailwind v4 theme variables */
+/* ── Tailwind v4 Theme Mapping ───────────────────────────────────────────────
+   Maps CSS variables to Tailwind's theme system so utility classes like
+   bg-background and text-foreground work throughout the app.
+   Font is intentionally NOT set here — Next.js layout.tsx handles it
+   via the --font-ui variable injected by next/font.
+   ───────────────────────────────────────────────────────────────────────── */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-
-  /* Map Tailwind's font-sans to the Next/font variable from layout.tsx */
-  --font-sans: var(--font-ui);
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --font-sans: var(--font-ui); /* Mapped from next/font in layout.tsx */
 }
 
-/* Do NOT set font-family here; Tailwind/Next handles it */
+/* ── Base Styles ─────────────────────────────────────────────────────────────*/
+
 body {
-  background: var(--background);
-  color: var(--foreground);
+    background: var(--background);
+    color: var(--foreground);
 }
 
-* { -webkit-tap-highlight-color: transparent; }
+/* Remove tap highlight on mobile (prevents blue flash on touch) */
+* {
+    -webkit-tap-highlight-color: transparent;
+}
 
-/* Custom scrollbar styles */
+/* ── Custom Scrollbar ────────────────────────────────────────────────────────
+   Applied via the `scrollbar-thin` utility class on any scrollable element.
+   Uses Firefox's scrollbar-width for non-webkit browsers.
+   Color references: gray-800 = #1f2937, gray-600 = #4b5563, gray-500 = #6b7280
+   ───────────────────────────────────────────────────────────────────────── */
 .scrollbar-thin {
-  scrollbar-width: thin;
+    scrollbar-width: thin; /* Firefox */
 }
 
 .scrollbar-thin::-webkit-scrollbar {
-  width: 6px;
+    width: 6px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-track {
-  background: #1f2937; /* gray-800 */
-  border-radius: 3px;
+    background: #1f2937; /* gray-800 */
+    border-radius: 3px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: #4b5563; /* gray-600 */
-  border-radius: 3px;
+    background: #4b5563; /* gray-600 */
+    border-radius: 3px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: #6b7280; /* gray-500 */
+    background: #6b7280; /* gray-500 */
 }
-
-.scrollbar-track-gray-800::-webkit-scrollbar-track {
-  background: #1f2937;
+/* ── Login Animations ────────────────────────────────────────────────────── */
+/* Shake animation for invalid OTP input */
+@keyframes shake {
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+    25% {
+        transform: translateX(-6px);
+    }
+    75% {
+        transform: translateX(6px);
+    }
 }
-
-.scrollbar-thumb-gray-600::-webkit-scrollbar-thumb {
-  background: #4b5563;
-}
-
-.hover\:scrollbar-thumb-gray-500:hover::-webkit-scrollbar-thumb {
-  background: #6b7280;
-}
+@plugin "@tailwindcss/typography";

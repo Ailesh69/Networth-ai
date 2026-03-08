@@ -1,4 +1,3 @@
-// src/Investment.tsx
 "use client";
 
 import React from "react";
@@ -9,40 +8,40 @@ import {
   LinearScale,
   PointElement,
   LineElement,
-  Title,
   Tooltip,
-  Legend,
+  type ChartOptions,
 } from "chart.js";
 
+// Register only the Chart.js components we actually use
+// This keeps the bundle size smaller than registering everything
 ChartJS.register(
   CategoryScale,
   LinearScale,
   PointElement,
   LineElement,
-  Title,
   Tooltip,
-  Legend
 );
 
-const data = {
-  labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-  datasets: [
-    {
-      label: "Portfolio Value",
-      data: [5000, 5200, 5100, 5500, 5670, 5800],
-      borderColor: "#36a2eb",
-      backgroundColor: "rgba(54,162,235,0.15)",
-      tension: 0.1,
-      borderWidth: 2,
-      pointRadius: 0,
-      fill: false,
-    },
-  ],
-};
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-const options: any = {
+interface InvestmentProps {
+  labels?: string[]; // X-axis labels (e.g. ["Jan", "Feb", ...])
+  values?: number[]; // Portfolio values matching each label
+  total?: number; // Current total portfolio value to display
+  delta?: number; // Percentage change as decimal (e.g. 0.024 = +2.4%)
+  currencySymbol?: string; // Currency prefix (default: ₹)
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+// Shared chart line styling
+const LINE_COLOR = "#36a2eb";
+const LINE_FILL_COLOR = "rgba(54, 162, 235, 0.15)";
+
+// Chart axis/tick configuration — static, no need to recompute per render
+const CHART_OPTIONS: ChartOptions<"line"> = {
   responsive: true,
-  maintainAspectRatio: false, // respect Tailwind height
+  maintainAspectRatio: false, // Allows Tailwind height classes to control chart size
   plugins: {
     legend: { display: false },
     tooltip: { enabled: true },
@@ -58,32 +57,64 @@ const options: any = {
       grid: { display: false },
     },
     y: {
-      display: false,
+      display: false, // Hide Y axis — values shown in the summary below
       grid: { display: false },
     },
   },
 };
 
-export default function Investment() {
-  const total = 5670;
-  const delta = 0.024; // +2.4%
+// ── Component ─────────────────────────────────────────────────────────────────
+
+/**
+ * Displays a mini investment portfolio chart with total value and % change.
+ * Designed to sit inside a Card component (no inner padding/shadow needed).
+ * Falls back to sample data when no props are provided.
+ */
+export default function Investment({
+  labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+  values = [5000, 5200, 5100, 5500, 5670, 5800],
+  total = 5670,
+  delta = 0.024,
+  currencySymbol = "₹",
+}: InvestmentProps) {
+  // Build chart dataset from props
+  const chartData = {
+    labels,
+    datasets: [
+      {
+        label: "Portfolio Value",
+        data: values,
+        borderColor: LINE_COLOR,
+        backgroundColor: LINE_FILL_COLOR,
+        tension: 0.1,
+        borderWidth: 2,
+        pointRadius: 0, // Hide individual data points for a cleaner sparkline look
+        fill: false,
+      },
+    ],
+  };
+
+  // Positive delta = green, negative = red
+  const deltaColor = delta >= 0 ? "text-emerald-400" : "text-rose-400";
+  const deltaLabel = `${delta >= 0 ? "+" : ""}${(delta * 100).toFixed(1)}%`;
 
   return (
-    // No bg/rounded/shadow/padding here — Card provides the styling
     <div className="space-y-2">
+      {/* Section label */}
       <h3 className="text-sm text-zinc-300">Investment Portfolio</h3>
 
+      {/* Sparkline chart */}
       <div className="w-full h-24">
-        <Line data={data} options={options} />
+        <Line data={chartData} options={CHART_OPTIONS} />
       </div>
 
-      {/* Amount and delta on the same line */}
+      {/* Total value and percentage change on the same row */}
       <div className="flex items-baseline justify-between">
-        <div className="text-[18px] font-semibold">${total.toLocaleString()}</div>
-        <div className={`text-[13px] ${delta >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-          {delta >= 0 ? "+" : ""}
-          {(delta * 100).toFixed(1)}%
+        <div className="text-[18px] font-semibold">
+          {currencySymbol}
+          {total.toLocaleString()}
         </div>
+        <div className={`text-[13px] ${deltaColor}`}>{deltaLabel}</div>
       </div>
     </div>
   );

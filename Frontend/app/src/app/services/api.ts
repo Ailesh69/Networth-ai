@@ -1,5 +1,18 @@
-// API service for communicating with the backend
-const API_BASE_URL = "http://localhost:8000";
+// ── Config ────────────────────────────────────────────────────────────────────
+
+// Base URL for all backend API requests
+// Set NEXT_PUBLIC_API_URL in .env.local to override for production
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
+// ── Interfaces ────────────────────────────────────────────────────────────────
+
+export interface TransactionItem {
+  date: string;
+  description: string;
+  debit: number;
+  credit: number;
+  category: string;
+}
 
 export interface FinancialSummary {
   incomeThisMonth: number;
@@ -23,12 +36,39 @@ export interface UploadStatementResponse {
   upcoming: UpcomingBill[];
   transactions: {
     count: number;
-    items: any[];
+    items: TransactionItem[]; // Typed properly instead of any[]
   };
   month: string;
 }
 
+export interface StockDataPoint {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export interface StockHistoryResponse {
+  symbol: string;
+  data: StockDataPoint[];
+}
+
+export interface PriceResponse {
+  symbol: string;
+  price: number;
+}
+
+// ── API Service ───────────────────────────────────────────────────────────────
+
 class ApiService {
+  /**
+   * Central request handler for all API calls.
+   * Handles JSON responses, error status codes, and network failures.
+   * For file uploads, pass FormData as body and omit Content-Type
+   * (the browser sets it automatically with the correct multipart boundary).
+   */
   private async makeRequest<T>(
     endpoint: string,
     options: RequestInit = {},
@@ -37,32 +77,44 @@ class ApiService {
 
     try {
       const response = await fetch(url, {
+        ...options,
         headers: {
-          "Content-Type": "application/json",
+          // Only set Content-Type for non-FormData requests
+          // FormData needs the browser to set its own multipart boundary
+          ...(options.body instanceof FormData
+            ? {}
+            : { "Content-Type": "application/json" }),
           ...options.headers,
         },
-        ...options,
       });
 
       if (!response.ok) {
+        // Include status code and server message for easier debugging
         const errorText = await response.text();
-        throw new Error(`API Error: ${response.status} - ${errorText}`);
+        throw new Error(`API Error ${response.status}: ${errorText}`);
       }
 
-      return response.json();
+      return response.json() as Promise<T>;
     } catch (error) {
+      // Provide a helpful message when the backend server isn't running
       if (
         error instanceof TypeError &&
         error.message.includes("Failed to fetch")
       ) {
         throw new Error(
-          "Backend server is not running. Please start the backend server on http://localhost:8000",
+          `Cannot reach backend at ${API_BASE_URL}. Make sure the server is running.`,
         );
       }
       throw error;
     }
   }
 
+  // ── Financial Data ──────────────────────────────────────────────────────────
+
+  /**
+   * Upload a bank statement file (CSV or Excel) and get a financial summary.
+   * Optionally filter results by month in YYYY-MM format.
+   */
   async uploadStatement(
     file: File,
     month?: string,
@@ -70,35 +122,21 @@ class ApiService {
     const formData = new FormData();
     formData.append("file", file);
 
-    const url = month
-      ? `${API_BASE_URL}/upload-statement?month=${encodeURIComponent(month)}`
-      : `${API_BASE_URL}/upload-statement`;
+    // Append month as a query param if provided
+    const endpoint = month
+      ? `/upload-statement?month=${encodeURIComponent(month)}`
+      : "/upload-statement";
 
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Upload failed: ${response.status} - ${errorText}`);
-      }
-
-      return response.json();
-    } catch (error) {
-      if (
-        error instanceof TypeError &&
-        error.message.includes("Failed to fetch")
-      ) {
-        throw new Error(
-          "Backend server is not running. Please start the backend server on http://localhost:8000",
-        );
-      }
-      throw error;
-    }
+    return this.makeRequest<UploadStatementResponse>(endpoint, {
+      method: "POST",
+      body: formData, // FormData — Content-Type is handled automatically
+    });
   }
 
+  /**
+   * Fetch a financial summary without uploading a file.
+   * Uses mock/demo data on the backend when no file has been uploaded.
+   */
   async getSummary(month?: string): Promise<UploadStatementResponse> {
     const endpoint = month
       ? `/summary?month=${encodeURIComponent(month)}`
@@ -108,32 +146,55 @@ class ApiService {
       method: "GET",
     });
   }
-  async getStockHistory(symbol: string, days: number = 30) {
-    return this.makeRequest(
+
+  // ── Market Data ─────────────────────────────────────────────────────────────
+
+  /**
+   * Fetch daily OHLCV price history for a stock over the last N days.
+   */
+  async getStockHistory(
+    symbol: string,
+    days: number = 30,
+  ): Promise<StockHistoryResponse> {
+    return this.makeRequest<StockHistoryResponse>(
       `/stock-history?symbol=${encodeURIComponent(symbol)}&days=${days}`,
-      {
-        method: "GET",
-      },
+      { method: "GET" },
     );
   }
 
-  async getStockPrice(symbol: string) {
-    return this.makeRequest(
+  /**
+   * Fetch the current price of a stock by ticker symbol.
+   */
+  async getStockPrice(symbol: string): Promise<PriceResponse> {
+    return this.makeRequest<PriceResponse>(
       `/stock-price?symbol=${encodeURIComponent(symbol)}`,
-      {
-        method: "GET",
-      },
+      { method: "GET" },
     );
   }
 
-  async getCryptoPrice(symbol: string) {
-    return this.makeRequest(
+  /**
+   * Fetch the current USD price of a cryptocurrency by CoinGecko ID.
+   */
+  async getCryptoPrice(symbol: string): Promise<PriceResponse> {
+    return this.makeRequest<PriceResponse>(
       `/crypto-price?symbol=${encodeURIComponent(symbol)}`,
-      {
-        method: "GET",
-      },
+      { method: "GET" },
     );
+  }
+  /**
+   * Send a chat message to the AI financial assistant.
+   * Returns the assistant's reply as a string.
+   */
+  async chat(
+    message: string,
+    personalityPrompt?: string,
+  ): Promise<{ reply: string }> {
+    return this.makeRequest<{ reply: string }>("/chat", {
+      method: "POST",
+      body: JSON.stringify({ message, personality_prompt: personalityPrompt }),
+    });
   }
 }
 
+// Export a single shared instance — no need to instantiate this elsewhere
 export const apiService = new ApiService();
