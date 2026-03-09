@@ -92,21 +92,21 @@ Networth-ai/
 ## Screenshots
 
 ### Login
-![Login](screenshots/login.png)
+<img src="screenshots/login.png" width="300"/>
 
 ### Dashboard
-![Dashboard](screenshots/dashboard.png)
-![Dashboard](screenshots/dashboard2.png)
+<img src="screenshots/dashboard.png" width="300"/>
+<img src="screenshots/dashboard2.png" width="300"/>
 
 ### Chat
-![Chat](screenshots/chat.png)
+<img src="screenshots/chat.png" width="300"/>
 
 ### Insights
-![Insights](screenshots/insights.png)
-![Insights](screenshots/insights2.png)
+<img src="screenshots/insights.png" width="300"/>
+<img src="screenshots/insights2.png" width="300"/>
 
 ### Settings
-![Settings](screenshots/settings.png)
+<img src="screenshots/settings.png" width="300"/>
 
 ## License
 
