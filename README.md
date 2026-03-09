@@ -91,7 +91,22 @@ Networth-ai/
 
 ## Screenshots
 
-> Coming soon
+### Login
+![Login](screenshots/login.png)
+
+### Dashboard
+![Dashboard](screenshots/dashboard.png)
+![Dashboard](screenshots/dashboard2.png)
+
+### Chat
+![Chat](screenshots/chat.png)
+
+### Insights
+![Insights](screenshots/insights.png)
+![Insights](screenshots/insights2.png)
+
+### Settings
+![Settings](screenshots/settings.png)
 
 ## License
 
